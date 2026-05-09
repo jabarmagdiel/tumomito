@@ -23,82 +23,90 @@ def _gen_numero():
 
 @router.post("/", response_model=dict, status_code=201)
 def crear_venta(data: VentaCreate, db: Session = Depends(get_db), user: Usuario = Depends(get_current_user)):
-    # Validar stock
-    for det in data.detalles:
-        stock = db.query(StockInventario).filter(
-            StockInventario.producto_id == det.producto_id,
-            StockInventario.almacen_id == data.almacen_id,
-        ).first()
-        if not stock or stock.cantidad < det.cantidad:
-            prod = db.query(Producto).get(det.producto_id)
-            raise HTTPException(400, f"Stock insuficiente para '{prod.nombre if prod else det.producto_id}'")
+    try:
+        # Validar stock
+        for det in data.detalles:
+            stock = db.query(StockInventario).filter(
+                StockInventario.producto_id == det.producto_id,
+                StockInventario.almacen_id == data.almacen_id,
+            ).first()
+            if not stock or stock.cantidad < det.cantidad:
+                prod = db.query(Producto).filter(Producto.id == det.producto_id).first()
+                raise HTTPException(400, f"Stock insuficiente para '{prod.nombre if prod else det.producto_id}'")
 
-    # Calcular totales
-    subtotal = sum(d.cantidad * d.precio_unitario * (1 - d.descuento_pct / 100) for d in data.detalles)
-    descuento_monto = subtotal * (data.descuento_pct / 100)
-    total = subtotal - descuento_monto
+        # Calcular totales
+        subtotal = sum(d.cantidad * d.precio_unitario * (1 - d.descuento_pct / 100) for d in data.detalles)
+        descuento_monto = subtotal * (data.descuento_pct / 100)
+        total = subtotal - descuento_monto
 
-    # Crear cabecera
-    venta = VentaCabecera(
-        numero_venta=_gen_numero(),
-        cliente_id=data.cliente_id,
-        almacen_id=data.almacen_id,
-        tipo_venta=data.tipo_venta,
-        descuento_pct=data.descuento_pct,
-        descuento_monto=round(descuento_monto, 2),
-        subtotal=round(subtotal, 2),
-        total=round(total, 2),
-        notas=data.notas,
-        usuario_id=user.id,
-    )
-    db.add(venta)
-    db.flush()
-
-    # Crear detalles y actualizar stock
-    for det in data.detalles:
-        sub = det.cantidad * det.precio_unitario * (1 - det.descuento_pct / 100)
-        detalle = VentaDetalle(
-            venta_id=venta.id,
-            producto_id=det.producto_id,
-            cantidad=det.cantidad,
-            precio_unitario=det.precio_unitario,
-            descuento_pct=det.descuento_pct,
-            subtotal=round(sub, 2),
-        )
-        db.add(detalle)
-
-        # Descontar stock
-        stock = db.query(StockInventario).filter(
-            StockInventario.producto_id == det.producto_id,
-            StockInventario.almacen_id == data.almacen_id,
-        ).first()
-        anterior = stock.cantidad
-        stock.cantidad -= det.cantidad
-
-        # Registrar Kardex
-        db.add(KardexInventario(
-            producto_id=det.producto_id,
-            almacen_id=data.almacen_id,
-            tipo="SALIDA",
-            cantidad=det.cantidad,
-            stock_anterior=anterior,
-            stock_resultante=stock.cantidad,
-            referencia_tipo="VENTA",
-            referencia_id=venta.id,
-        ))
-
-    # Cuenta por cobrar opcional
-    if data.generar_cuenta_cobrar:
-        db.add(CuentaCobrar(
-            venta_id=venta.id,
+        # Crear cabecera
+        venta = VentaCabecera(
+            numero_venta=_gen_numero(),
             cliente_id=data.cliente_id,
-            monto_total=round(total, 2),
-            fecha_vencimiento=data.fecha_vencimiento,
-        ))
+            almacen_id=data.almacen_id,
+            tipo_venta=data.tipo_venta,
+            descuento_pct=data.descuento_pct,
+            descuento_monto=round(descuento_monto, 2),
+            subtotal=round(subtotal, 2),
+            total=round(total, 2),
+            notas=data.notas,
+            usuario_id=user.id,
+        )
+        db.add(venta)
+        db.flush()
 
-    db.commit()
-    db.refresh(venta)
-    return {"id": venta.id, "numero_venta": venta.numero_venta, "total": float(venta.total)}
+        # Crear detalles y actualizar stock
+        for det in data.detalles:
+            sub = det.cantidad * det.precio_unitario * (1 - det.descuento_pct / 100)
+            detalle = VentaDetalle(
+                venta_id=venta.id,
+                producto_id=det.producto_id,
+                cantidad=det.cantidad,
+                precio_unitario=det.precio_unitario,
+                descuento_pct=det.descuento_pct,
+                subtotal=round(sub, 2),
+            )
+            db.add(detalle)
+
+            # Descontar stock
+            stock = db.query(StockInventario).filter(
+                StockInventario.producto_id == det.producto_id,
+                StockInventario.almacen_id == data.almacen_id,
+            ).first()
+            anterior = stock.cantidad
+            stock.cantidad -= det.cantidad
+
+            # Registrar Kardex
+            db.add(KardexInventario(
+                producto_id=det.producto_id,
+                almacen_id=data.almacen_id,
+                tipo="SALIDA",
+                cantidad=det.cantidad,
+                stock_anterior=anterior,
+                stock_resultante=stock.cantidad,
+                referencia_tipo="VENTA",
+                referencia_id=venta.id,
+            ))
+
+        # Cuenta por cobrar opcional
+        if data.generar_cuenta_cobrar:
+            db.add(CuentaCobrar(
+                venta_id=venta.id,
+                cliente_id=data.cliente_id,
+                monto_total=round(total, 2),
+                fecha_vencimiento=data.fecha_vencimiento,
+            ))
+
+        db.commit()
+        db.refresh(venta)
+        return {"id": venta.id, "numero_venta": venta.numero_venta, "total": float(venta.total)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        db.rollback()
+        print("TRACEBACK:", traceback.format_exc())
+        raise HTTPException(500, detail=str(e) + "\n" + traceback.format_exc())
 
 
 @router.get("/", response_model=List[dict])

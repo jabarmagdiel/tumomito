@@ -1,0 +1,18 @@
+# ============================================================
+# Render.yaml para el FRONTEND (React Static Site)
+# ============================================================
+services:
+  - type: web
+    name: tumomito-frontend
+    env: static
+    region: oregon
+    plan: free
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://tumomito-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -1,0 +1,24 @@
+# ============================================================
+# Render.yaml para el BACKEND (FastAPI)
+# ============================================================
+services:
+  - type: web
+    name: tumomito-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # Se configura manualmente en Render Dashboard
+      - key: SECRET_KEY
+        generateValue: true  # Render genera una clave automáticamente
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "480"
+      - key: FRONTEND_URL
+        value: https://tumomito-frontend.onrender.com
+      - key: ENVIRONMENT
+        value: production

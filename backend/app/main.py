@@ -45,6 +45,19 @@ def root():
     return {"status": "ok", "sistema": "ERP TUMOMITO", "version": "1.0.0"}
 
 
+@app.get("/db-test", tags=["Health"])
+def db_test():
+    try:
+        from app.database import engine
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            res = conn.execute(text("SELECT 1")).scalar()
+            return {"status": "ok", "result": res}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc(), "db_url": os.getenv("DATABASE_URL", "NOT_FOUND")}
+
+
 @app.get("/health", tags=["Health"])
 def health():
     return {"status": "healthy"}

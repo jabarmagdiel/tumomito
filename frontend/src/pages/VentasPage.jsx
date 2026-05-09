@@ -42,12 +42,33 @@ export default function VentasPage() {
     if (form.detalles.length === 0) return toast.error('Agregue al menos un producto');
     if (!form.almacen_id) return toast.error('Seleccione almacén');
     try {
-      await api.post('/api/ventas/', { ...form, cliente_id: form.cliente_id || null, almacen_id: parseInt(form.almacen_id), descuento_pct: parseFloat(form.descuento_pct), detalles: form.detalles.map(d => ({ ...d, producto_id: parseInt(d.producto_id), cantidad: parseInt(d.cantidad), precio_unitario: parseFloat(d.precio_unitario), descuento_pct: parseFloat(d.descuento_pct) })) });
+      const payload = { 
+        ...form, 
+        cliente_id: form.cliente_id || null, 
+        almacen_id: parseInt(form.almacen_id), 
+        descuento_pct: parseFloat(form.descuento_pct), 
+        fecha_vencimiento: form.fecha_vencimiento || null,
+        detalles: form.detalles.map(d => ({ 
+          ...d, 
+          producto_id: parseInt(d.producto_id), 
+          cantidad: parseInt(d.cantidad), 
+          precio_unitario: parseFloat(d.precio_unitario), 
+          descuento_pct: parseFloat(d.descuento_pct) 
+        })) 
+      };
+      await api.post('/api/ventas/', payload);
       toast.success('Venta registrada exitosamente');
       setModal(false);
       setForm({ cliente_id: '', almacen_id: '', tipo_venta: 'MAYORISTA', descuento_pct: 0, notas: '', detalles: [], generar_cuenta_cobrar: false, fecha_vencimiento: '' });
       load();
-    } catch (e) { toast.error(e.response?.data?.detail || 'Error al registrar'); }
+    } catch (e) { 
+      let msg = 'Error al registrar';
+      if (e.response?.data?.detail) {
+        if (typeof e.response.data.detail === 'string') msg = e.response.data.detail;
+        else if (Array.isArray(e.response.data.detail)) msg = e.response.data.detail[0].msg;
+      }
+      toast.error(msg);
+    }
   };
 
   const verDetalle = async (id) => {

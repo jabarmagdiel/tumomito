@@ -9,6 +9,8 @@ export default function ProductosPage() {
   const [proveedores, setProveedores] = useState([]);
   const [search, setSearch] = useState('');
   const [catFiltro, setCatFiltro] = useState('');
+  const [skip, setSkip] = useState(0);
+  const limit = 50;
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -23,6 +25,9 @@ export default function ProductosPage() {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (catFiltro) params.set('categoria_id', catFiltro);
+    params.set('skip', skip);
+    params.set('limit', limit);
+    setLoading(true);
     api.get(`/api/productos/?${params}`).then(r => setProductos(r.data)).finally(() => setLoading(false));
   };
 
@@ -31,7 +36,11 @@ export default function ProductosPage() {
     api.get('/api/proveedores/').then(r => setProveedores(r.data));
   }, []);
 
-  useEffect(() => { load(); }, [search, catFiltro]);
+  useEffect(() => { 
+    setSkip(0); 
+  }, [search, catFiltro]);
+
+  useEffect(() => { load(); }, [search, catFiltro, skip]);
 
   const openCreate = () => {
     setEditItem(null);
@@ -128,6 +137,21 @@ export default function ProductosPage() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderTop: '1px solid var(--border)' }}>
+          <button 
+            className="btn btn-secondary btn-sm" 
+            disabled={skip === 0} 
+            onClick={() => setSkip(s => Math.max(0, s - limit))}>
+            Anterior
+          </button>
+          <span className="text-muted" style={{fontSize: 13}}>Mostrando {productos.length} productos</span>
+          <button 
+            className="btn btn-secondary btn-sm" 
+            disabled={productos.length < limit} 
+            onClick={() => setSkip(s => s + limit)}>
+            Siguiente
+          </button>
         </div>
       </div>
 

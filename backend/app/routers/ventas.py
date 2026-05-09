@@ -46,8 +46,8 @@ def crear_venta(data: VentaCreate, db: Session = Depends(get_db), user: Usuario 
             almacen_id=data.almacen_id,
             tipo_venta=data.tipo_venta,
             descuento_pct=data.descuento_pct,
-            descuento_monto=round(descuento_monto, 2),
             subtotal=round(subtotal, 2),
+            descuento_monto=round(descuento_monto, 2),
             total=round(total, 2),
             notas=data.notas,
             usuario_id=user.id,
@@ -57,14 +57,12 @@ def crear_venta(data: VentaCreate, db: Session = Depends(get_db), user: Usuario 
 
         # Crear detalles y actualizar stock
         for det in data.detalles:
-            sub = det.cantidad * det.precio_unitario * (1 - det.descuento_pct / 100)
             detalle = VentaDetalle(
                 venta_id=venta.id,
                 producto_id=det.producto_id,
                 cantidad=det.cantidad,
                 precio_unitario=det.precio_unitario,
                 descuento_pct=det.descuento_pct,
-                subtotal=round(sub, 2),
             )
             db.add(detalle)
 

@@ -1,5 +1,5 @@
 from app.database import Base
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, TIMESTAMP, Date, func, Text, Boolean
+from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, TIMESTAMP, Date, func, Text, Boolean, FetchedValue
 from sqlalchemy.orm import relationship
 
 
@@ -51,7 +51,7 @@ class VentaDetalle(Base):
     cantidad = Column(Integer, nullable=False, default=0)
     precio_unitario = Column(Numeric(12, 2), nullable=False, default=0)
     descuento_pct = Column(Numeric(5, 2), default=0)
-    subtotal = Column(Numeric(14, 2), default=0)
+    subtotal = Column(Numeric(14, 2), FetchedValue())
     venta = relationship("VentaCabecera", back_populates="detalles")
     producto = relationship("Producto", back_populates="venta_detalles")
 
@@ -83,7 +83,7 @@ class CompraDetalle(Base):
     cantidad_pedida = Column(Integer, default=0)
     cantidad_recibida = Column(Integer, default=0)
     precio_unitario = Column(Numeric(12, 2), nullable=False, default=0)
-    subtotal = Column(Numeric(14, 2), default=0)
+    subtotal = Column(Numeric(14, 2), FetchedValue())
     compra = relationship("CompraCabecera", back_populates="detalles")
     producto = relationship("Producto", back_populates="compra_detalles")
 
